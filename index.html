@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Flappy Bird Mobile</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            touch-action: manipulation;
+            overflow: hidden;
+            font-family: 'Helvetica Neue', sans-serif;
+            background-color: #333;
+        }
+        canvas {
+            display: block;
+            margin: 0 auto;
+            background: #87CEEB;
+            border-radius: 10px;
+            box-shadow: 0 10px 20px rgba(0,0,0,0.2);
+        }
+        .unselectable {
+            -webkit-touch-callout: none;
+            -webkit-user-select: none;
+            -khtml-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            user-select: none;
+        }
+    </style>
+</head>
+<body class="flex items-center justify-center h-screen unselectable">
+
+    <div class="text-center">
+        <h1 class="text-white text-3xl font-bold mb-2">Flappy Bird</h1>
+        <canvas id="gameCanvas"></canvas>
+        <div id="ui-overlay" class="text-white mt-2">
+            <p class="text-lg">Score: <span id="score" class="font-bold">0</span></p>
+            <p class="text-sm">High Score: <span id="highScore" class="font-bold">0</span></p>
+        </div>
+        <div id="startMessage" class="text-white text-xl mt-4 animate-pulse">
+            Tap to Start
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const scoreEl = document.getElementById('score');
+        const highScoreEl = document.getElementById('highScore');
+        const startMessage = document.getElementById('startMessage');
+
+        let canvasWidth = 320;
+        let canvasHeight = 480;
+        canvas.width = canvasWidth;
+        canvas.height = canvasHeight;
+
+        const bird = {
+            x: 50,
+            y: 150,
+            width: 30,
+            height: 30,
+            gravity: 0.4,
+            lift: -7,
+            velocity: 0
+        };
+
+        const pipes = [];
+        const pipeWidth = 50;
+        const pipeGap = 120;
+        let frameCount = 0;
+        let score = 0;
+        let highScore = localStorage.getItem('flappyHighScore') || 0;
+        highScoreEl.textContent = highScore;
+        let gameOver = true;
+
+        function drawBird() {
+            ctx.fillStyle = 'yellow';
+            ctx.fillRect(bird.x, bird.y, bird.width, bird.height);
+            ctx.fillStyle = 'black';
+            ctx.fillRect(bird.x + 20, bird.y + 10, 5, 5);
+        }
+
+        function updateBird() {
+            bird.velocity += bird.gravity;
+            bird.y += bird.velocity;
+
+            if (bird.y + bird.height > canvas.height) {
+                bird.y = canvas.height - bird.height;
+                bird.velocity = 0;
+                endGame();
+            }
+            if (bird.y < 0) {
+                bird.y = 0;
+                bird.velocity = 0;
+            }
+        }
+
+        function drawPipes() {
+            ctx.fillStyle = 'green';
+            for (let p of pipes) {
+                ctx.fillRect(p.x, 0, pipeWidth, p.top);
+                ctx.fillRect(p.x, canvas.height - p.bottom, pipeWidth, canvas.height - p.bottom);
+            }
+        }
+
+        function updatePipes() {
+            if (frameCount % 90 === 0) {
+                const topHeight = Math.random() * (canvas.height - pipeGap - 100) + 50;
+                pipes.push({
+                    x: canvas.width,
+                    top: topHeight,
+                    bottom: canvas.height - topHeight - pipeGap,
+                    passed: false
+                });
+            }
+
+            for (let i = pipes.length - 1; i >= 0; i--) {
+                pipes[i].x -= 3;
+                if (pipes[i].x + pipeWidth < 0) {
+                    pipes.splice(i, 1);
+                }
+            }
+        }
+        
+        function checkCollisions() {
+            for (let p of pipes) {
+                if (
+                    bird.x < p.x + pipeWidth &&
+                    bird.x + bird.width > p.x &&
+                    (bird.y < p.top || bird.y + bird.height > canvas.height - p.bottom)
+                ) {
+                    endGame();
+                }
+                
+                if (p.x + pipeWidth < bird.x && !p.passed) {
+                    p.passed = true;
+                    score++;
+                    scoreEl.textContent = score;
+                }
+            }
+        }
+
+        function resetGame() {
+            bird.y = 150;
+            bird.velocity = 0;
+            pipes.length = 0;
+            score = 0;
+            scoreEl.textContent = 0;
+            gameOver = false;
+            startMessage.style.display = 'none';
+            gameLoop();
+        }
+
+        function endGame() {
+            gameOver = true;
+            startMessage.textContent = 'Game Over! Tap to Restart';
+            startMessage.style.display = 'block';
+            
+            if (score > highScore) {
+                highScore = score;
+                localStorage.setItem('flappyHighScore', highScore);
+                highScoreEl.textContent = highScore;
+            }
+        }
+
+        function gameLoop() {
+            if (gameOver) return;
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            updateBird();
+            drawBird();
+            updatePipes();
+            drawPipes();
+            checkCollisions();
+            frameCount++;
+            requestAnimationFrame(gameLoop);
+        }
+
+        function handleUserAction(event) {
+            event.preventDefault(); 
+            if (gameOver) {
+                resetGame();
+            } else {
+                bird.velocity = bird.lift;
+            }
+        }
+
+        window.addEventListener('touchstart', handleUserAction);
+        window.addEventListener('mousedown', handleUserAction);
+        window.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                handleUserAction(e);
+            }
+        });
+        
+        drawBird();
+
+    </script>
+</body>
+</html>
+```
